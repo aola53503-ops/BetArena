@@ -14,8 +14,8 @@ class Config:
     # Odds API (Optional - for live odds)
     ODDS_API_KEY = os.getenv('ODDS_API_KEY')
     
-    # Database
-    DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite://://betarena.db')
+    # Database - FIXED: Use sqlite:/// (three slashes, not four)
+    DATABASE_URL = os.getenv('DATABASE_URL', 'sqlite:///betarena.db')
     
     # Default Currency
     DEFAULT_CURRENCY = os.getenv('DEFAULT_CURRENCY', 'USD')
