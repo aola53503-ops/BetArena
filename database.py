@@ -3,9 +3,27 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 from config import Config
+import os
+
+# Ensure database directory exists
+db_path = Config.DATABASE_URL.replace('sqlite:///', '')
+db_dir = os.path.dirname(db_path)
+if db_dir and not os.path.exists(db_dir):
+    os.makedirs(db_dir, exist_ok=True)
 
 Base = declarative_base()
-engine = create_engine(Config.DATABASE_URL)
+
+# Create engine with proper configuration
+try:
+    engine = create_engine(
+        Config.DATABASE_URL,
+        connect_args={'check_same_thread': False} if 'sqlite' in Config.DATABASE_URL else {}
+    )
+except Exception as e:
+    print(f"Database error: {e}")
+    # Fallback to a simple SQLite file
+    engine = create_engine('sqlite:///betarena.db', connect_args={'check_same_thread': False})
+
 SessionLocal = sessionmaker(bind=engine)
 
 class User(Base):
@@ -51,6 +69,7 @@ class Transaction(Base):
     description = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow)
 
+# Create tables
 Base.metadata.create_all(engine)
 
 class Database:
@@ -68,6 +87,11 @@ class Database:
                 session.add(user)
                 session.commit()
             return user
+        except Exception as e:
+            session.rollback()
+            print(f"Database error in get_user: {e}")
+            # Return a default user
+            return User(telegram_id=telegram_id)
         finally:
             session.close()
     
@@ -81,6 +105,10 @@ class Database:
                 user.last_active = datetime.utcnow()
                 session.commit()
                 return user.balance
+            return None
+        except Exception as e:
+            session.rollback()
+            print(f"Database error in update_balance: {e}")
             return None
         finally:
             session.close()
@@ -110,6 +138,10 @@ class Database:
             
             session.commit()
             return bet
+        except Exception as e:
+            session.rollback()
+            print(f"Database error in add_bet: {e}")
+            return None
         finally:
             session.close()
     
@@ -136,6 +168,10 @@ class Database:
                 session.commit()
                 return bet
             return None
+        except Exception as e:
+            session.rollback()
+            print(f"Database error in settle_bet: {e}")
+            return None
         finally:
             session.close()
     
@@ -147,6 +183,9 @@ class Database:
                 Bet.created_at.desc()
             ).limit(limit).all()
             return bets
+        except Exception as e:
+            print(f"Database error in get_bets: {e}")
+            return []
         finally:
             session.close()
     
@@ -164,5 +203,9 @@ class Database:
             session.add(transaction)
             session.commit()
             return transaction
+        except Exception as e:
+            session.rollback()
+            print(f"Database error in add_transaction: {e}")
+            return None
         finally:
             session.close()
